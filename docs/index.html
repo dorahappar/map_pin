@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Leaflet CSV読み込み・番号付きピン（日本語項目）</title>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    #map { height: 400px; margin-top: 10px; }
+    .number-marker {
+      background-color: #2A93EE;
+      color: white;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      text-align: center;
+      line-height: 24px;
+      font-weight: bold;
+      border: 2px solid white;
+    }
+  </style>
+</head>
+<body>
+  <input type="file" id="csvfile" accept=".csv" />
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([35.681236, 139.767125], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    const fileInput = document.getElementById('csvfile');
+
+    fileInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = event => {
+        const text = event.target.result.trim();
+        const lines = text.split('\n');
+
+        // ヘッダーのカラム名を取得
+        const headers = lines[0].split(',');
+
+        // 項目名のインデックスを探す
+        const idxNo     = headers.indexOf('No');
+        const idxDate   = headers.indexOf('日時');
+        const idxLat    = headers.indexOf('緯度');
+        const idxLng    = headers.indexOf('経度');
+        const idxMemo   = headers.indexOf('音声メモ');
+
+        // データ行の処理
+        const data = lines.slice(1).map(line => {
+          const cols = line.split(',');
+          return {
+            no: cols[idxNo],
+            date: cols[idxDate].replace(/"/g, ''),
+            lat: parseFloat(cols[idxLat]),
+            lng: parseFloat(cols[idxLng]),
+            memo: cols[idxMemo].replace(/"/g, '')
+          };
+        });
+
+        if (data.length > 0) {
+          map.setView([data[0].lat, data[0].lng], 15);
+        }
+
+        data.forEach((row, i) => {
+          const numberIcon = L.divIcon({
+            className: 'number-marker',
+            html: row.no,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+          });
+
+          L.marker([row.lat, row.lng], {icon: numberIcon})
+            .addTo(map)
+            .bindPopup(
+              `<b>No:</b> ${row.no}<br>
+               <b>日時:</b> ${row.date}<br>
+               <b>緯度:</b> ${row.lat}<br>
+               <b>経度:</b> ${row.lng}<br>
+               <b>音声メモ:</b> ${row.memo}`
+            );
+        });
+      };
+      reader.readAsText(file, 'UTF-8'); // UTF-8で読み込み
+    });
+  </script>
+</body>
+</html>
